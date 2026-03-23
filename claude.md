@@ -1,32 +1,36 @@
-# CLAUDE.md — AI QA Platform
+# CLAUDE.md — QA Buddy
 
 ## Project overview
 
-AI-powered QA platform (SaaS) that autonomously detects test failures and runtime errors, analyzes root causes using AI, and generates fix pull requests. Teams connect their repos and CI — the platform watches, diagnoses, and heals.
+AI-powered QA platform (SaaS) that analyzes codebases and automatically generates functional/manual test cases. Teams connect their GitHub repos, AI analyzes the code, and generates structured test cases for human review. Approved test cases are pushed to the team's test case management (TCM) tool of choice.
 
-Think Tembo-style background coding agent, but focused specifically on QA and test failure resolution.
+Think AI QA engineer that reads your code and writes your test plans — with human review before anything ships.
 
 ## Architecture
 
 ```
-External signals (GitHub webhooks, Sentry, Slack, CI systems)
+GitHub repo connection (GitHub App)
     │
     ▼
-FastAPI — webhook ingestion + REST API (auth, routing, rate limiting)
+FastAPI — REST API (auth, repo management, test case CRUD, TCM sync)
     │
     ▼
 Task queue (Celery + Redis) — async job processing
     │
     ▼
 Worker pipeline:
-    Context builder → AI analyzer (Claude API) → Healer/fixer (generates PRs)
+    Code fetcher → Code analyzer → AI test case generator (Claude API)
     │
     ▼
-Storage + Output:
-    PostgreSQL (runs, failures, fixes) │ Dashboard (Next.js) │ Notifications (Slack, GitHub, email)
+Storage:
+    PostgreSQL (repos, test cases, review status, sync history)
     │
     ▼
-Feedback loop — PR review comments trigger re-analysis
+Dashboard (Next.js) — review, approve/reject/edit test cases
+    │
+    ▼
+TCM sync — push approved test cases to:
+    TestRail │ Xray (Jira) │ Zephyr │ qTest │ Azure Test Plans │ others
 ```
 
 ## Tech stack
@@ -36,12 +40,12 @@ Feedback loop — PR review comments trigger re-analysis
 | Language (backend) | Python 3.12+              | Type hints everywhere, strict mypy             |
 | API framework      | FastAPI                   | Async, OpenAPI spec auto-generated             |
 | Task queue         | Celery + Redis            | Async workers, retry/backoff built-in          |
-| AI                 | Anthropic API (Claude)    | Structured tool use for code analysis/edits    |
+| AI                 | Anthropic API (Claude)    | Structured tool use for code analysis          |
 | Database           | PostgreSQL                | Via SQLAlchemy 2.0 + Alembic migrations        |
 | Frontend           | Next.js 14+ (App Router)  | TypeScript, Tailwind CSS, shadcn/ui            |
 | Auth               | NextAuth.js               | GitHub OAuth (primary), session-based          |
-| Primary integration| GitHub App                | Repo access, PR creation, webhook events       |
-| Notifications      | Slack Bot + GitHub comments| SSE for real-time portal updates               |
+| Primary integration| GitHub App                | Repo access, code fetching                     |
+| TCM integrations   | TestRail, Xray, Zephyr, qTest, Azure Test Plans | Push approved test cases   |
 | Package management | uv (Python workspaces)    | Fast, handles monorepo Python deps             |
 | Deployment         | Docker Compose → Fly.io   | Simple to start, scale later                   |
 | CI/CD              | GitHub Actions             | Lint, test, build, deploy                      |
@@ -49,20 +53,17 @@ Feedback loop — PR review comments trigger re-analysis
 ## Monorepo structure
 
 ```
-ai-qa-platform/
+qa-buddy/
 ├── apps/
 │   ├── api/                            # FastAPI backend
-│   │   ├── webhooks/
-│   │   │   ├── github.py               # GitHub App webhook handler (workflow_run, check_run, PR events)
-│   │   │   ├── sentry.py               # Sentry issue/error webhook handler
-│   │   │   └── slack.py                # Slack slash commands and event handler
 │   │   ├── routes/
 │   │   │   ├── auth.py                 # Login, GitHub OAuth flow, session management
 │   │   │   ├── orgs.py                 # Org CRUD, member management, roles
-│   │   │   ├── repos.py               # Repo config, signal toggles, per-repo settings
-│   │   │   ├── events.py              # Activity feed, failure list, event detail
-│   │   │   ├── analytics.py           # Stats, charts data, trends
-│   │   │   ├── integrations.py        # Sentry/Slack connect endpoints
+│   │   │   ├── repos.py               # Repo management, file browsing, scan triggers
+│   │   │   ├── test_cases.py           # Test case CRUD, review (approve/reject/edit), bulk actions
+│   │   │   ├── generations.py          # Generation job status, history, re-generate
+│   │   │   ├── integrations.py         # TCM platform connect/disconnect/sync endpoints
+│   │   │   ├── analytics.py            # Coverage stats, generation history, approval rates
 │   │   │   └── admin.py               # Super admin routes (platform_admin only)
 │   │   ├── middleware/
 │   │   │   ├── auth.py                 # JWT/session validation
@@ -73,14 +74,13 @@ ai-qa-platform/
 │   │
 │   ├── worker/                         # Celery async task workers
 │   │   ├── tasks/
-│   │   │   ├── analyze.py              # Build context → call Claude API → store diagnosis
-│   │   │   ├── heal.py                 # Generate fix → create branch → open PR
-│   │   │   ├── notify.py              # Slack message, GitHub comment, email
-│   │   │   └── feedback.py            # Handle PR review comments → re-analyze if needed
+│   │   │   ├── generate.py             # Fetch code → analyze → call Claude API → store test cases
+│   │   │   ├── sync_tcm.py            # Push approved test cases to TCM platforms
+│   │   │   └── notify.py              # Slack/email notifications on generation complete
 │   │   ├── celery_app.py              # Celery config, broker/backend settings
 │   │   └── config.py                   # Worker-specific settings (retry limits, timeouts)
 │   │
-│   └── portal/                         # Next.js admin portal + marketing site
+│   └── portal/                         # Next.js dashboard + marketing site
 │       ├── src/
 │       │   ├── app/
 │       │   │   ├── (auth)/             # Login, signup, GitHub OAuth callback
@@ -88,30 +88,31 @@ ai-qa-platform/
 │       │   │   │   └── callback/
 │       │   │   ├── (dashboard)/        # Customer-facing portal (requires auth)
 │       │   │   │   ├── layout.tsx      # Sidebar nav, org context provider
-│       │   │   │   ├── overview/       # Activity feed + summary stats
-│       │   │   │   ├── repos/          # Repo list + per-repo config page
-│       │   │   │   ├── events/         # Failure list + event detail view (diagnosis, diff, PR link)
-│       │   │   │   ├── analytics/      # Charts: fix rate, MTTR, failure patterns
-│       │   │   │   ├── integrations/   # Connect Sentry, Slack, future: Jira/Linear
+│       │   │   │   ├── overview/       # Summary stats, recent generations
+│       │   │   │   ├── repos/          # Repo list, select files/modules to scan
+│       │   │   │   ├── test-cases/     # Test case review queue: approve, reject, edit
+│       │   │   │   ├── generations/    # Generation job history and status
+│       │   │   │   ├── integrations/   # Connect TCM tools (TestRail, Xray, Zephyr, qTest, etc.)
+│       │   │   │   ├── analytics/      # Coverage, approval rates, generation trends
 │       │   │   │   └── settings/       # Org settings, members, billing, API keys
 │       │   │   ├── (marketing)/        # Public pages (no auth)
 │       │   │   │   ├── page.tsx        # Landing page
 │       │   │   │   ├── pricing/
 │       │   │   │   └── docs/
 │       │   │   └── (internal)/         # Super admin panel (platform_admin only, build later)
-│       │   │       ├── customers/      # All orgs list, detail, usage
-│       │   │       ├── health/         # System health, queue depth, error rates
-│       │   │       └── billing/        # Revenue, cost per org, Stripe overview
+│       │   │       ├── customers/
+│       │   │       ├── health/
+│       │   │       └── billing/
 │       │   ├── components/
 │       │   │   ├── ui/                 # shadcn/ui base components
 │       │   │   ├── layout/             # Sidebar, topbar, breadcrumbs
-│       │   │   ├── events/             # EventCard, EventDetail, DiffViewer
-│       │   │   ├── repos/              # RepoCard, SignalToggle, ConfigForm
-│       │   │   └── charts/             # FixRateChart, MTTRChart, FailurePatterns
+│       │   │   ├── test-cases/         # TestCaseCard, TestCaseDetail, ReviewActions, BulkActions
+│       │   │   ├── repos/              # RepoCard, FileBrowser, ScanConfig
+│       │   │   └── charts/             # CoverageChart, ApprovalRateChart, GenerationTrends
 │       │   ├── lib/
 │       │   │   ├── api-client.ts       # Typed API client (generated from OpenAPI spec)
 │       │   │   ├── auth.ts             # NextAuth config, GitHub provider
-│       │   │   └── hooks/              # useEvents, useRepos, useAnalytics, useSSE
+│       │   │   └── hooks/              # useTestCases, useRepos, useGenerations, useSSE
 │       │   └── types/                  # Shared TypeScript types
 │       ├── tailwind.config.ts
 │       ├── next.config.ts
@@ -123,23 +124,27 @@ ai-qa-platform/
 │   │   │   ├── org.py                  # Organization: name, slug, plan, stripe_customer_id
 │   │   │   ├── user.py                 # User: github_id, email, is_platform_admin
 │   │   │   ├── membership.py           # OrgMembership: user_id, org_id, role (admin/member)
-│   │   │   ├── repo.py                 # Repo: org_id, github_repo_id, full_name, config (JSON)
-│   │   │   ├── event.py                # FailureEvent: repo_id, signal_type, status, raw_payload
-│   │   │   ├── analysis.py             # Analysis: event_id, diagnosis, root_cause, suggested_fix
-│   │   │   ├── fix.py                  # Fix: analysis_id, branch_name, pr_url, pr_status, merged_at
-│   │   │   └── integration.py          # Integration: org_id, type (sentry/slack), credentials (encrypted)
-│   │   ├── parsers/                    # Test result parsers → unified model
-│   │   │   ├── base.py                 # TestFailure dataclass (universal failure model)
-│   │   │   ├── junit_xml.py            # JUnit XML parser (pytest, JUnit, Mocha, Go, etc.)
-│   │   │   ├── json_report.py          # JSON report parser (Cypress, Playwright, custom)
-│   │   │   ├── tap.py                  # TAP (Test Anything Protocol) parser
-│   │   │   └── log_parser.py           # Raw log/stdout fallback parser
-│   │   ├── context_builder.py          # Fetch relevant source files, git diffs, CI logs via GitHub API
-│   │   ├── prompts/                    # Prompt templates for AI analysis and fix generation
-│   │   │   ├── analyze.py              # Failure diagnosis prompt
-│   │   │   ├── fix.py                  # Code fix generation prompt
-│   │   │   └── feedback.py             # PR review response prompt
-│   │   ├── github_client.py            # GitHub App API wrapper (repos, files, PRs, comments, logs)
+│   │   │   ├── repo.py                 # Repo: org_id, github_repo_id, full_name, default_branch
+│   │   │   ├── test_case.py            # TestCase: repo_id, title, objective, preconditions, steps, expected_result, priority, category, status (pending/approved/rejected), tags
+│   │   │   ├── generation.py           # Generation: repo_id, scope (files/module/repo), status, token_usage, test_case_count
+│   │   │   └── integration.py          # Integration: org_id, type (testrail/xray/zephyr/qtest/azure), credentials (encrypted), project_mapping
+│   │   ├── code_analyzer/              # Code analysis for test case generation
+│   │   │   ├── base.py                 # CodeModule dataclass (functions, classes, endpoints, dependencies)
+│   │   │   ├── python_analyzer.py      # Python AST analysis (functions, classes, decorators, type hints)
+│   │   │   ├── javascript_analyzer.py  # JS/TS analysis (exports, React components, API routes)
+│   │   │   └── generic_analyzer.py     # Fallback: regex-based extraction for other languages
+│   │   ├── prompts/                    # Prompt templates for AI test case generation
+│   │   │   ├── generate_tests.py       # Main test case generation prompt
+│   │   │   ├── refine_tests.py         # Prompt for editing/improving rejected test cases
+│   │   │   └── categorize.py           # Auto-categorize generated test cases (smoke, regression, edge case, etc.)
+│   │   ├── tcm/                        # Test case management tool adapters
+│   │   │   ├── base.py                 # Abstract TCM adapter interface
+│   │   │   ├── testrail.py             # TestRail API adapter
+│   │   │   ├── xray.py                 # Xray (Jira) adapter
+│   │   │   ├── zephyr.py              # Zephyr Scale/Squad adapter
+│   │   │   ├── qtest.py               # qTest adapter
+│   │   │   └── azure_test_plans.py    # Azure Test Plans adapter
+│   │   ├── github_client.py            # GitHub App API wrapper (repos, files, tree browsing)
 │   │   ├── db.py                       # Database engine, session factory
 │   │   └── config.py                   # Shared config (DB URL, Redis URL, API keys)
 │   │
@@ -159,14 +164,14 @@ ai-qa-platform/
 │   └── fly.toml                        # Fly.io deploy config (or Railway/Render)
 │
 ├── scripts/
-│   ├── seed.py                         # Seed dev data (test org, repo, sample events)
+│   ├── seed.py                         # Seed dev data (test org, repo, sample test cases)
 │   ├── create_github_app.py            # Helper to register GitHub App
 │   └── generate_api_client.py          # Generate TypeScript client from OpenAPI spec
 │
 ├── tests/
 │   ├── api/                            # API route tests
 │   ├── worker/                         # Worker task tests
-│   ├── core/                           # Parser, context builder, prompt tests
+│   ├── core/                           # Code analyzer, prompt, TCM adapter tests
 │   └── conftest.py                     # Shared fixtures (test db, mock GitHub, mock Claude API)
 │
 ├── .github/
@@ -182,42 +187,65 @@ ai-qa-platform/
 
 ## Key concepts
 
-### Signal types
+### Test case model
 
-Signals are the events that trigger analysis. Each repo can enable/disable signals independently:
+Each generated test case is a structured, functional/manual test case:
 
-- `ci_failure` — GitHub Actions workflow_run or check_run failure. Fetches CI logs via GitHub API.
-- `sentry_error` — Sentry issue webhook. Includes stack trace, breadcrumbs, context.
-- `slack_trigger` — Team member tags the bot in Slack with a repo + description.
-- `manual` — Created via dashboard or API.
+- **Title** — concise description of what is being tested
+- **Objective** — what this test validates and why it matters
+- **Preconditions** — setup required before executing the test
+- **Steps** — ordered list of actions the tester performs
+- **Expected result** — what should happen if the feature works correctly
+- **Priority** — critical, high, medium, low
+- **Category** — smoke, functional, regression, edge case, negative, boundary, integration
+- **Tags** — free-form labels (e.g., module name, feature area, API endpoint)
+- **Source reference** — file path + function/class that this test case covers
 
-### Event lifecycle
+### Generation flow
 
 ```
-signal_received → queued → context_building → analyzing → diagnosed → fixing → pr_opened → (merged | rejected | stale)
+user selects repo/files → queued → code_fetching → analyzing → generating → pending_review → (approved | rejected | edited) → synced_to_tcm
 ```
 
-Each FailureEvent tracks its status through this lifecycle. The feedback loop: if a PR is rejected or receives review comments, the event can re-enter `analyzing` state.
+1. User selects a repo and optionally narrows scope to specific files, modules, or directories
+2. Worker fetches code from GitHub via the GitHub App
+3. Code analyzer extracts structure: functions, classes, endpoints, dependencies
+4. AI (Claude) generates functional test cases based on the code analysis
+5. Test cases land in `pending_review` status in the dashboard
+6. User reviews each test case: approve, reject, or edit
+7. Approved test cases are pushed to the connected TCM tool
 
-### Context building
+### Code analysis
 
-The most critical piece. For a given failure, the context builder:
+The quality of generated test cases depends on how well we understand the code. The code analyzer:
 
-1. Parses the test result into a unified `TestFailure` model
-2. Extracts relevant file paths from stack traces
-3. Fetches those source files from the repo via GitHub API
-4. Fetches the test file itself
-5. Gets recent git diffs on the affected files (last 5 commits)
-6. Pulls CI logs (for CI failures)
-7. Bundles everything into a structured prompt for Claude
+1. Parses source files and extracts structure (functions, classes, methods, endpoints)
+2. Identifies dependencies and relationships between modules
+3. Detects patterns: API endpoints, database operations, auth checks, input validation
+4. Extracts docstrings, type hints, and comments for additional context
+5. Bundles everything into a structured prompt for Claude
+
+Language-specific analyzers (Python AST, JS/TS) provide richer extraction. A generic regex-based fallback handles other languages.
+
+### TCM integrations
+
+Approved test cases are pushed to the team's test case management tool. Each adapter implements a common interface:
+
+- **TestRail** — create test cases in suites/sections, map priorities and categories
+- **Xray (Jira)** — create test issues with steps, link to Jira projects
+- **Zephyr Scale/Squad** — create test cases in Zephyr within Jira
+- **qTest** — create test cases in qTest modules
+- **Azure Test Plans** — create test cases in Azure DevOps test plans
+
+Each integration stores: API credentials (encrypted), project/suite mapping, field mapping (how QA Buddy categories map to the tool's fields).
 
 ### Guardrails
 
-- Max 3 retry attempts per failure event before marking as `needs_human`
-- AI-generated fixes always go on a separate branch, never direct to main/default
-- PRs include full diagnosis in the description so reviewers have context
-- Per-org rate limiting on analysis jobs (prevent runaway costs)
-- Cost tracking: log token usage per analysis, track cost per org
+- Per-org rate limiting on generation jobs (prevent runaway AI costs)
+- Cost tracking: log token usage per generation, track cost per org
+- Max file size limits for code analysis (skip minified/generated files)
+- Test cases always go through human review — never auto-pushed to TCM
+- Duplicate detection: flag if a generated test case is similar to an existing one in the TCM
 
 ## Coding conventions
 
@@ -263,7 +291,7 @@ The most critical piece. For a given failure, the context builder:
 
 ```bash
 # Database
-DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/aiqaplatform
+DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/qabuddy
 
 # Redis
 REDIS_URL=redis://localhost:6379/0
@@ -278,12 +306,9 @@ GITHUB_APP_WEBHOOK_SECRET=whsec_...
 GITHUB_CLIENT_ID=Iv1.xxx
 GITHUB_CLIENT_SECRET=xxx
 
-# Sentry (optional)
-SENTRY_WEBHOOK_SECRET=xxx
-
-# Slack (optional)
-SLACK_BOT_TOKEN=xoxb-...
-SLACK_SIGNING_SECRET=xxx
+# TCM integrations (per-org, stored encrypted in DB — these are defaults for dev)
+TESTRAIL_BASE_URL=https://yourinstance.testrail.io
+TESTRAIL_API_KEY=xxx
 
 # Stripe (future)
 STRIPE_SECRET_KEY=sk_...
@@ -328,40 +353,46 @@ cd apps/portal && npm install && npm run dev
 
 ## MVP roadmap
 
-### Phase 1 — Core analysis (weeks 1-2)
+### Phase 1 — AI test case generation + review (weeks 1-3)
 
-- `packages/core`: parsers (JUnit XML first), TestFailure model, context builder, prompts
-- `apps/api`: GitHub App webhook handler for `workflow_run` failure events
-- `apps/worker`: analyze task — fetch logs, build context, call Claude API
-- Output: post a GitHub commit comment with the AI diagnosis
-- No portal yet, no PR generation
+- `packages/core`: language-agnostic code analyzer (Python, JS/TS, Java, Go, etc.), test case model, generation prompts
+- `apps/api`: GitHub App integration (connect repo, fetch code), test case CRUD, generation trigger
+- `apps/worker`: generate task — fetch code, analyze, call Claude API, store test cases
+- `apps/portal`: minimal dashboard — connect repo, trigger generation, review test cases (approve/reject/edit)
+- Output: generated functional test cases visible in dashboard for human review
+- No TCM sync yet — just generate and review
 
-### Phase 2 — Auto-fix PRs (weeks 3-4)
+### Phase 2 — TCM integrations (weeks 4-5)
 
-- `apps/worker`: heal task — generate fix, create branch, open PR via GitHub API
-- Feedback loop: listen for PR review comments, re-analyze if requested
-- Add retry logic and guardrails (max attempts, cost tracking)
+- `packages/core/tcm`: adapter interface + TestRail adapter (first integration)
+- `apps/api`: integration CRUD endpoints, sync trigger, field mapping config
+- `apps/worker`: sync task — push approved test cases to connected TCM
+- `apps/portal`: integrations page — connect TCM, configure project/suite mapping
+- Add Xray and Zephyr adapters
 
-### Phase 3 — Portal + onboarding (weeks 5-7)
+### Phase 3 — Smarter generation + polish (weeks 6-7)
 
-- `apps/portal`: auth (GitHub OAuth), onboarding flow (install GitHub App, select repos)
-- Dashboard: activity feed, event detail view (diagnosis + diff preview + PR link)
-- Repo config page: signal toggles, auto-fix on/off, retry limits
-- SSE for real-time updates
+- Improved prompts: better edge case coverage, negative testing, boundary conditions
+- Duplicate detection: flag test cases similar to existing ones in TCM
+- Bulk actions: approve/reject multiple test cases at once
+- Re-generate: user can request regeneration for rejected test cases with feedback
+- qTest and Azure Test Plans adapters
 
-### Phase 4 — Expand (weeks 8+)
+### Phase 4 — Scale + expand (weeks 8+)
 
-- Sentry integration (runtime error signals)
-- Slack bot (trigger analysis, receive notifications)
-- Analytics page (fix rate, MTTR, failure patterns)
-- Org settings (members, billing via Stripe)
+- Analytics: generation coverage, approval rates, trends over time
+- Auto-generate on new commits (optional per-repo setting)
+- Org settings: members, billing via Stripe
 - Super admin panel (customer management, health monitoring)
-- Multi-repo support, Jira/Linear integration
+- Slack notifications on generation complete
+- API for programmatic test case generation (CI/CD integration)
 
 ## Important notes
 
-- The GitHub App is the #1 integration — everything flows through it. Build this first and build it well.
-- Context builder quality determines everything. The better the context sent to Claude, the better the diagnosis and fix. Invest time here.
-- Start with GitHub Actions only for CI. Add other CI adapters (GitLab, Jenkins) only after validating the core loop.
-- Every AI analysis should log full token usage for cost tracking. This becomes the basis for billing.
+- The GitHub App is the primary integration for code access. Build this first and build it well.
+- Code analyzer quality determines everything. The better the code understanding sent to Claude, the better the test cases. Invest time here.
+- Code analysis must be language-agnostic from day one. Use language-specific analyzers (Python AST, JS/TS parser) where possible, with a generic fallback for other languages. Claude itself is good at understanding any language, so even the generic analyzer produces useful test cases.
+- Test cases ALWAYS go through human review. Never auto-push to TCM without approval.
+- Every AI generation should log full token usage for cost tracking. This becomes the basis for billing.
+- TCM adapter pattern: build the abstract interface first, then implement TestRail. Other adapters follow the same pattern.
 - The super admin panel (`(internal)` route group) is deferred. Use direct DB queries and protected API routes until you have 10+ customers.
