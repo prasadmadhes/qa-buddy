@@ -1,9 +1,17 @@
-[project]
+[tool.poetry]
 name = "qa-buddy"
 version = "0.1.0"
-description = "AI-powered QA assistant that diagnoses test failures"
-requires-python = ">=3.12"
-dependencies = [
-    "fastapi>=0.111",
-    "uvicorn>=0.30",
-]
+description = "AI-powered QA platform that generates test cases from code"
+authors = []
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.111"
+uvicorn = "^0.30"
+anthropic = "^0.40"
+pydantic-settings = "^2.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
