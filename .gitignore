@@ -50,3 +50,4 @@ htmlcov/
 .ruff_cache/
 
 /designs
+/docs
