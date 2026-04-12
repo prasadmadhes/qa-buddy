@@ -11,6 +11,9 @@ fastapi = "^0.111"
 uvicorn = "^0.30"
 anthropic = "^0.40"
 pydantic-settings = "^2.0"
+sqlalchemy = {extras = ["asyncio"], version = "^2.0.48"}
+asyncpg = "^0.31.0"
+alembic = "^1.18.4"
 
 [build-system]
 requires = ["poetry-core"]
