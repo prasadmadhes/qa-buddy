@@ -8,6 +8,7 @@ Every time your API needs to read/write data, it opens a session,
 does its work, and closes the session.
 """
 
+from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 # The engine is the connection to PostgreSQL.
@@ -29,3 +30,16 @@ def setup_database(database_url: str):
     session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     return engine, session_factory
+
+
+async def get_session(request: Request):
+    """
+    FastAPI dependency — gives a database session to any route that asks for it.
+
+    Usage in a route:
+        async def my_route(session = Depends(get_session)):
+            result = await session.execute(...)
+    """
+    session_factory = request.app.state.session_factory
+    async with session_factory() as session:
+        yield session
