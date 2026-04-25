@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.core.db import get_session
 from packages.core.models.organization import Organization
-from packages.core.schemas.organization import OrgCreate, OrgResponse
+from packages.core.schemas.organization import OrgCreate, OrgResponse, OrgUpdate
 
 router = APIRouter(prefix="/organizations", tags=["organizations"])
 
@@ -43,4 +43,26 @@ async def get_organization(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Organization not found",
         )
+    return org
+
+
+@router.patch("/{id}", response_model=OrgResponse)
+async def update_organization(
+    id: uuid.UUID,
+    payload: OrgUpdate,
+    session: AsyncSession = Depends(get_session),
+):
+    org = await session.get(Organization, id)
+    if org is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Organization not found",
+        )
+
+    update_data = payload.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(org, field, value)
+
+    await session.commit()
+    await session.refresh(org)
     return org
