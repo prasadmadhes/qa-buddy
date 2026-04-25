@@ -2,6 +2,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.core.db import get_session
@@ -18,7 +19,14 @@ async def create_organization(
 ):
     org = Organization(name=payload.name, slug=payload.slug)
     session.add(org)
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An organization with this slug already exists",
+        )
     await session.refresh(org)
     return org
 
@@ -63,6 +71,28 @@ async def update_organization(
     for field, value in update_data.items():
         setattr(org, field, value)
 
-    await session.commit()
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An organization with this slug already exists",
+        )
     await session.refresh(org)
     return org
+
+
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_organization(
+    id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+):
+    org = await session.get(Organization, id)
+    if org is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Organization not found",
+        )
+    await session.delete(org)
+    await session.commit()
