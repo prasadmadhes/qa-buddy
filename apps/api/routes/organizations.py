@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends, status
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from packages.core.db import get_session
@@ -17,4 +20,27 @@ async def create_organization(
     session.add(org)
     await session.commit()
     await session.refresh(org)
+    return org
+
+
+@router.get("", response_model=list[OrgResponse])
+async def list_organizations(
+    session: AsyncSession = Depends(get_session),
+):
+    result = await session.execute(select(Organization))
+    orgs = result.scalars().all()
+    return orgs
+
+
+@router.get("/{id}", response_model=OrgResponse)
+async def get_organization(
+    id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+):
+    org = await session.get(Organization, id)
+    if org is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Organization not found",
+        )
     return org
