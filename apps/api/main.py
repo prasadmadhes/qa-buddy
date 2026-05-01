@@ -4,7 +4,7 @@ from fastapi import Depends, FastAPI
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.api.routes import organizations, users
+from apps.api.routes import memberships, organizations, users
 from packages.core.config import settings
 from packages.core.db import get_session, setup_database
 
@@ -30,6 +30,7 @@ app = FastAPI(lifespan=lifespan)
 
 app.include_router(organizations.router)
 app.include_router(users.router)
+app.include_router(memberships.router)
 
 
 @app.get("/")
