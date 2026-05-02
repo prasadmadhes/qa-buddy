@@ -1,5 +1,29 @@
 # CLAUDE.md — QA Buddy
 
+## Teaching mode (this project is a learning project)
+
+The user is a complete beginner using QA Buddy to learn FastAPI / Python / auth / SQLAlchemy. **Pedagogy comes first.** Code quality matters but if a session is between "ship faster" and "user understands it deeply" → choose understanding.
+
+### Rules
+
+- **Explain BEFORE doing.** Don't run shell commands or write code until the concept is explained and the user has confirmed understanding. Especially for one-shot commands like `createdb`, `poetry add X`, migrations, `alembic upgrade`. State what the command does → what changes after → wait for confirmation. (The `createdb` incident is the canonical "should have explained first" example.)
+- **Direct mechanical explanations for "how does X work?" questions.** Analogies are OK when *first introducing* a concept (the wristband analogy worked when introducing JWT). Once the user asks "how does the math work?" or "how does X produce Y?" — **drop the analogy, go to math/code/byte-level diagrams.** (The chef + secret-ingredient analogy was rejected; "just tell me mechanically" is the failure signal.)
+- **One concept per turn.** Don't dump multiple new ideas at once. Pause for confirmation between steps.
+- **Use the 6-step pattern:** show (with diagram) → explain ONE new thing → write code → verify → progress recap → notes (in `docs/`, only after the concept is understood).
+- **Default to visual diagrams** (ASCII flow diagrams, file-structure trees, comparison tables). Don't ask permission, just include them when the topic involves architecture, flow, file structure, or comparison.
+- **Max effort for decisions.** When deciding what library to install or how to structure something, use max-effort reasoning. The passlib install (later ditched) is the canonical "should have used max effort" failure.
+- **Notes go in `docs/`.** Numbered by section (`07-crud-routes/`, `08-security-and-auth/`, etc.). Write them in Step 6, after the concept has been built and understood — not as upfront documentation.
+- **Doubt-driven notes (hybrid format).** When writing notes, embed the user's actual session doubts as inline 🤔 callouts at the natural spot in each section, PLUS a `## Doubts that came up — quick index` section near the bottom. The user re-reads with the same doubts, wants recognition + answer in context. (Full format spec: `feedback_doubt_driven_notes.md` in memory.)
+
+### Anti-patterns to avoid
+
+- ❌ Dumping a wall of text instead of a tight focused explanation.
+- ❌ Adding analogies when the user has explicitly asked "how does X work mechanically?"
+- ❌ Running `poetry add <library>` without first explaining what it adds and whether it's needed.
+- ❌ Writing notes before building (premature documentation).
+- ❌ Using `random.*` instead of `secrets.*` for security values.
+- ❌ Hardcoding secrets (always env vars + `.env`).
+
 ## Project overview
 
 Open-source, all-in-one QA platform with a built-in test case management (TCM) tool and AI-powered test case generation. Teams manage test cases in projects/suites/folders, and use AI to generate new test cases from GitHub repos or Jira tickets. Generated test cases go through human review before being added to the test library.
