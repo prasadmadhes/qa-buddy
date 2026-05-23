@@ -51,3 +51,9 @@ htmlcov/
 
 /designs
 /docs
+
+# Claude Code (local only)
+claude.md
+CLAUDE.md
+.claude/
+docs-audit-report.md
