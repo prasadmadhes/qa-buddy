@@ -14,7 +14,7 @@ This creates an "organizations" table in the database:
 
 import uuid
 
-from sqlalchemy import String
+from sqlalchemy import Boolean, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from packages.core.models.base import Base
@@ -29,3 +29,9 @@ class Organization(Base):
     )
     name: Mapped[str] = mapped_column(String(100))
     slug: Mapped[str] = mapped_column(String(100), unique=True)  # no duplicate slugs
+    is_personal: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,           # client-side default for new rows from SA
+        server_default="false",  # DB-side default for the migration's backfill
+    )
