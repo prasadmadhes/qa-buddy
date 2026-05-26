@@ -7,7 +7,7 @@ from alembic import context
 
 from packages.core.config import settings
 from packages.core.models.base import Base
-from packages.core.models import user, organization, membership, project, suite, folder, test_case
+from packages.core.models import user, organization, membership, project, suite, folder, test_case, invite
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
