@@ -31,10 +31,16 @@ class Membership(Base):
     )
 
     # Points to the users table — "which user?"
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    # ondelete="CASCADE": deleting a user auto-deletes their memberships.
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE")
+    )
 
     # Points to the organizations table — "which org?"
-    org_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("organizations.id"))
+    # ondelete="CASCADE": deleting an org auto-deletes all its memberships.
+    org_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
 
     # What role does this user have in this org?
     role: Mapped[str] = mapped_column(String(20))  # "owner", "admin", "member"
