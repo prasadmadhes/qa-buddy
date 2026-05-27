@@ -15,21 +15,24 @@ class FolderCreate(BaseModel):
     """
     What the user sends when creating a folder.
 
+    suite_id is NOT here — it comes from the URL path
+    (POST /organizations/{}/projects/{}/suites/{suite_id}/folders).
+
+    parent_id IS here — it's a self-pointer to another folder in the
+    same suite (or null for a top-level folder). It's not a URL parent.
+
     Example request (top-level folder):
     {
-        "name": "Login",
-        "suite_id": "a1b2-..."
+        "name": "Login"
     }
 
     Example request (nested folder):
     {
         "name": "Email Login",
-        "suite_id": "a1b2-...",
-        "parent_id": "c3d4-..."   ← inside another folder
+        "parent_id": "c3d4-..."   ← inside another folder in the SAME suite
     }
     """
     name: str = Field(min_length=2, max_length=100)
-    suite_id: uuid.UUID                     # which suite does this folder belong to?
     parent_id: uuid.UUID | None = None      # optional — None = top-level folder
 
 

@@ -15,16 +15,18 @@ class SuiteCreate(BaseModel):
     """
     What the user sends when creating a suite.
 
+    project_id is NOT here — it comes from the URL path
+    (POST /organizations/{org_id}/projects/{project_id}/suites).
+    Path is the source of truth for parent IDs.
+
     Example request:
     {
         "name": "Authentication Tests",
-        "description": "All auth related test cases",
-        "project_id": "a1b2-c3d4-..."
+        "description": "All auth related test cases"
     }
     """
     name: str = Field(min_length=2, max_length=100)
     description: str | None = None
-    project_id: uuid.UUID               # which project does this suite belong to?
 
 
 class SuiteUpdate(BaseModel):

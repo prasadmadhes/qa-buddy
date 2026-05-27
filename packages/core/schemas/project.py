@@ -15,16 +15,18 @@ class ProjectCreate(BaseModel):
     """
     What the user sends when creating a project.
 
+    org_id is NOT here — it comes from the URL path
+    (POST /organizations/{org_id}/projects). Path is source of truth
+    for parent IDs; payload only carries the new resource's own fields.
+
     Example request:
     {
         "name": "Backend API",
-        "description": "Test cases for the backend API",
-        "org_id": "a1b2-c3d4-..."
+        "description": "Test cases for the backend API"
     }
     """
     name: str = Field(min_length=2, max_length=100)
     description: str | None = None
-    org_id: uuid.UUID                   # which org does this project belong to?
 
 
 class ProjectUpdate(BaseModel):

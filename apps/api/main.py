@@ -4,7 +4,7 @@ from fastapi import Depends, FastAPI
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.api.routes import auth, invites, memberships, organizations, users
+from apps.api.routes import auth, folders, invites, memberships, organizations, projects, suites, test_cases, users
 from packages.core.config import settings
 from packages.core.db import get_session, setup_database
 
@@ -33,6 +33,10 @@ app.include_router(users.router)
 app.include_router(memberships.router)
 app.include_router(auth.router)
 app.include_router(invites.router)
+app.include_router(projects.router)
+app.include_router(suites.router)
+app.include_router(folders.router)
+app.include_router(test_cases.router)
 
 
 @app.get("/")

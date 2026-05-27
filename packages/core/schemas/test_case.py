@@ -17,6 +17,12 @@ class TestCaseCreate(BaseModel):
     """
     What the user sends when creating a test case.
 
+    suite_id is NOT here — it comes from the URL path
+    (POST /organizations/{}/projects/{}/suites/{suite_id}/test-cases).
+
+    folder_id IS here — optional pointer to a folder in the SAME suite
+    (null = test case sits at the top of the suite, not in any folder).
+
     Example request:
     {
         "title": "User can login with valid email",
@@ -24,7 +30,7 @@ class TestCaseCreate(BaseModel):
         "expected_result": "User sees dashboard",
         "priority": "high",
         "category": "smoke",
-        "suite_id": "a1b2-..."
+        "folder_id": "c3d4-..."   ← optional, must be a folder in THIS suite
     }
     """
     title: str = Field(min_length=2, max_length=255)
@@ -36,8 +42,7 @@ class TestCaseCreate(BaseModel):
     category: Category = Category.functional    # defaults to "functional"
     tags: str | None = None
     source_reference: str | None = None
-    suite_id: uuid.UUID                         # required — which suite?
-    folder_id: uuid.UUID | None = None          # optional — which folder?
+    folder_id: uuid.UUID | None = None          # optional — which folder in this suite?
 
 
 class TestCaseUpdate(BaseModel):
