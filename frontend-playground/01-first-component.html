@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>React — 3.06 Events (capturing input)</title>
+  </head>
+  <body>
+    <!-- React's single mount point. Starts EMPTY — React fills it. -->
+    <div id="root"></div>
+
+    <!-- (1) React core: defines components + the diff engine. Knows nothing about browsers. -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+
+    <!-- (2) React DOM: the bridge that writes React's output into the real browser DOM. -->
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+
+    <!-- (3) Babel: translates JSX into plain JS, in the browser, at load time. (Dev-only crutch.) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- (4) Your code. type="text/babel" tells Babel: transform this before running it. -->
+    <script type="text/babel">
+      const { useState } = React;
+
+      function NameForm() {
+        const [name, setName] = useState(""); // state to hold what we capture
+
+        return (
+          <div>
+            <input onChange={(e) => {
+              console.log("onChange")
+              console.log("he")
+              setName(e.target.value)}} placeholder="type your name" />
+            <p>Captured in state: "{name}" — {name.length} characters</p>
+          </div>
+        );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<NameForm />);
+    </script>
+  </body>
+</html>

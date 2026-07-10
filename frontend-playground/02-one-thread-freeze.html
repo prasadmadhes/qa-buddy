@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>JS Async — L1: Is JavaScript single-threaded?</title>
+    <style>
+      body { font-family: system-ui, sans-serif; text-align: center; padding: 48px; }
+      #clock { font-size: 56px; font-variant-numeric: tabular-nums; margin: 24px 0; }
+      button { font-size: 18px; padding: 12px 22px; cursor: pointer; }
+      input { font-size: 18px; padding: 8px 12px; margin-top: 28px; width: 300px; }
+      .hint { color: #555; line-height: 1.6; margin: 28px auto 0; max-width: 460px; }
+    </style>
+  </head>
+  <body>
+    <h1>Is JavaScript single-threaded?</h1>
+
+    <!-- A clock that ticks ~20×/second. Watch the milliseconds whirr. -->
+    <div id="clock">--:--:--.---</div>
+
+    <button id="freezeBtn">⛔ Block the thread for 5 seconds</button>
+
+    <p class="hint">
+      Click the button — then <b>immediately</b> try to type in the box below,
+      or click the button again. Watch the clock. Nothing responds until the
+      5 seconds are up… then everything catches up at once.
+    </p>
+    <input id="typeHere" placeholder="try typing while it's blocked…" />
+
+    <!-- ───────────────────────────────────────────────────────────────
+         ⚠️  DON'T study this whole script. Only ONE line matters today:
+             the  while (...) {}  loop near the bottom.
+         Everything else just exists to make the freeze visible.
+         (The clock uses setInterval — that's literally Lesson 2.)
+         ─────────────────────────────────────────────────────────────── -->
+    <script>
+      const clock = document.getElementById("clock");
+
+      // SCAFFOLDING (Lesson 2): repaint the clock 20×/sec so it ticks smoothly.
+      setInterval(() => {
+        const t = new Date();
+        const pad = (n, w = 2) => String(n).padStart(w, "0");
+        clock.textContent =
+          `${pad(t.getHours())}:${pad(t.getMinutes())}:${pad(t.getSeconds())}.${pad(t.getMilliseconds(), 3)}`;
+      }, 50);
+
+      // 👇👇👇  THE ONLY LINE THAT MATTERS TODAY  👇👇👇
+      document.getElementById("freezeBtn").addEventListener("click", () => {
+        const start = Date.now();
+        while (Date.now() - start < 5000) {
+          // Do nothing — just keep the single thread 100% busy for 5 seconds.
+          // While we're stuck in here, that one thread CAN'T tick the clock,
+          // CAN'T show your keystrokes, CAN'T react to anything. One worker.
+        }
+      });
+      // 👆👆👆  ↑ that busy loop = "blocking". The page is dead until it ends.
+    </script>
+  </body>
+</html>
