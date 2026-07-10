@@ -1,23 +1,22 @@
 // ════════════════════════════════════════════════════════════════
-// ROUTE:  /            (dashboard — the landing page after login)
+// ROUTE:  /settings
 // ────────────────────────────────────────────────────────────────
-// PURPOSE: at-a-glance overview + jumping-off point.
+// PURPOSE: your account.
 //
 // SECTIONS
-//   • header: "QA Buddy" + welcome / current org
-//   • quick stats:  # projects · # test cases · # pending AI reviews
-//   • recent activity: recently edited cases / recent generation jobs
-//   • quick actions:  [ New Project ]  [ Generate tests ]
+//   • profile: name, email
+//   • change password
+//   • sign out
 //
-// DATA
-//   • counts + recent items from your projects / cases / generation APIs
+// DATA / ACTIONS
+//   • GET /me; update profile; change password; clear JWT + redirect → /login
 // ════════════════════════════════════════════════════════════════
 
-export default function DashboardPage() {
+export default function SettingsPage() {
   return (
     <main>
-      <h1>QA Buddy</h1>
-      <p>Dashboard — stats, recent activity, quick actions. See the design brief above.</p>
+      <h1>Account settings</h1>
+      <p>Profile · password · sign out. See the design brief above.</p>
     </main>
   );
 }

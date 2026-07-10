@@ -1,23 +1,26 @@
 // ════════════════════════════════════════════════════════════════
-// ROUTE:  /projects
+// ROUTE:  /login          (public — no auth required)
 // ────────────────────────────────────────────────────────────────
-// PURPOSE: list every project in the current org; create a new one.
+// PURPOSE: sign an existing user in.
 //
 // SECTIONS
-//   • header: "Projects" + [ New Project ]
-//   • project cards / list:  name · # suites · # test cases · updated-at
-//   • empty state: "No projects yet — create your first"
+//   • email + password form
+//   • [ Sign in ] button
+//   • inline error area ("wrong email or password")
+//   • link → /signup ("New here? Create an account")
 //
 // DATA / ACTIONS
-//   • GET the current org's projects
-//   • create (form/modal → POST);  click a card → /projects/[projectId]
+//   • submit → POST /auth/login → receive JWT → store it → redirect to /
+//
+// 🔮 LAYOUT: /login and /signup should NOT show the app nav (Home | Projects).
+//    Later: give the auth pages their own bare layout (a nested layout, 5.05/04).
 // ════════════════════════════════════════════════════════════════
 
-export default function ProjectsPage() {
+export default function LoginPage() {
   return (
     <main>
-      <h1>Projects</h1>
-      <p>List of all projects + [ New Project ]. See the design brief above.</p>
+      <h1>Sign in</h1>
+      <p>Login form goes here — see the design brief above.</p>
     </main>
   );
 }

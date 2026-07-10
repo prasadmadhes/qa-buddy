@@ -1,23 +1,23 @@
 // ════════════════════════════════════════════════════════════════
-// ROUTE:  /            (dashboard — the landing page after login)
+// ROUTE:  /settings/team
 // ────────────────────────────────────────────────────────────────
-// PURPOSE: at-a-glance overview + jumping-off point.
+// PURPOSE: manage the organization — members + invites.
+//          (Backend already has orgs, memberships, and invites.)
 //
 // SECTIONS
-//   • header: "QA Buddy" + welcome / current org
-//   • quick stats:  # projects · # test cases · # pending AI reviews
-//   • recent activity: recently edited cases / recent generation jobs
-//   • quick actions:  [ New Project ]  [ Generate tests ]
+//   • members list: name, email, role (owner / member)
+//   • [ Invite ] : email + role → sends an invite
+//   • pending invites list
 //
-// DATA
-//   • counts + recent items from your projects / cases / generation APIs
+// DATA / ACTIONS
+//   • list org members; POST an invite; revoke an invite; change/remove a role
 // ════════════════════════════════════════════════════════════════
 
-export default function DashboardPage() {
+export default function TeamSettingsPage() {
   return (
     <main>
-      <h1>QA Buddy</h1>
-      <p>Dashboard — stats, recent activity, quick actions. See the design brief above.</p>
+      <h1>Team &amp; members</h1>
+      <p>Org members and invites. See the design brief above.</p>
     </main>
   );
 }

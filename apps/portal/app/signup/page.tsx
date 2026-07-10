@@ -1,23 +1,25 @@
 // ════════════════════════════════════════════════════════════════
-// ROUTE:  /            (dashboard — the landing page after login)
+// ROUTE:  /signup         (public — no auth required)
 // ────────────────────────────────────────────────────────────────
-// PURPOSE: at-a-glance overview + jumping-off point.
+// PURPOSE: create a new account. (The API also auto-creates a personal
+//          org for the new user — see the backend signup flow.)
 //
 // SECTIONS
-//   • header: "QA Buddy" + welcome / current org
-//   • quick stats:  # projects · # test cases · # pending AI reviews
-//   • recent activity: recently edited cases / recent generation jobs
-//   • quick actions:  [ New Project ]  [ Generate tests ]
+//   • name + email + password form
+//   • [ Create account ] button
+//   • link → /login ("Already have an account? Sign in")
 //
-// DATA
-//   • counts + recent items from your projects / cases / generation APIs
+// DATA / ACTIONS
+//   • submit → POST /auth/signup → receive JWT → store it → redirect to /
+//
+// 🔮 LAYOUT: bare layout (no app nav), same as /login.
 // ════════════════════════════════════════════════════════════════
 
-export default function DashboardPage() {
+export default function SignupPage() {
   return (
     <main>
-      <h1>QA Buddy</h1>
-      <p>Dashboard — stats, recent activity, quick actions. See the design brief above.</p>
+      <h1>Create account</h1>
+      <p>Signup form goes here — see the design brief above.</p>
     </main>
   );
 }
